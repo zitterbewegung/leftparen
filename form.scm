@@ -94,7 +94,7 @@
                   #:class (css-class #f)
                   #:auto-submit (auto-submit #f)
                   #:return-form-obj (return-form-obj #f)
-                  #:input-id (input-id #f)
+                  #:input-id (input-id "none")
                   #:on-done (on-done (lambda (rec) (redirect-to (setting *WEB_APP_URL*)))))
   (let ((init-data (if (rec? init) (rec-data init) init))
         (is-upload (has-upload-field? fields)))
@@ -143,10 +143,9 @@
                  ,@(if on-submit `((onsubmit ,on-submit)) '()))
                 ,@(splice-if error-msg `(div ((class "errors")) ,error-msg))
                 (input ((type "hidden")
-                        (id ,input-id)
                         (name ,(symbol->string (setting *CLOSURE_URL_KEY*)))
                         (value ,(body-as-closure-key (req) (store-form-rec! req)))))
-                ,@(form-body fields submit-label init-data form-id
+                ,@(form-body fields submit-label init-data form-id input-id
                              #:skip-br skip-br #:auto-submit auto-submit))))
       (if return-form-obj (make-form-obj f form-id) f))))
 
@@ -170,7 +169,9 @@
 ;; Note that field-value is a "lifted" (Scheme) value.
 ;;
 (define (paint-field field-name field-type form-id
-                     #:field-value (field-value #f) #:auto-submit (auto-submit #f))
+                     #:field-value (field-value #f)
+                     #:auto-submit (auto-submit #f)
+                     #:input-id (input-id #f))
   (let ((field-name (symbol->string field-name))
         (field-type-name (if (field-type? field-type)
                              (field-type-name field-type)
@@ -178,7 +179,7 @@
         (auto '(onchange "this.form.submit();")))
     (case field-type-name
       ((text)
-       `(input ((type "text") (name ,field-name) (class "text-input") (size "40")
+       `(input ((type "text") (id ,input-id) (name ,field-name) (class "text-input") (size "40")
                 (value ,(or field-value "")))))
       ((long-text)
        `(textarea ((name ,field-name) (class "text-input")
@@ -253,7 +254,7 @@
         (script ,(format "render_rich_text_editor('~A', '~A')" field-name form-id))))
 
 ;; returns a list of html objects, so you'll need to splice in to the caller.
-(define (form-body fields submit-label init-data form-id
+(define (form-body fields submit-label init-data form-id input-id
                    #:skip-br (skip-br #f) #:auto-submit (auto-submit #f))
   (define (paint-segment field-name display-name field-type)
     (let* ((is-checkbox (eq? field-type 'checkbox))
@@ -262,6 +263,7 @@
                                   `(label ,display-name))
                               (paint-field field-name field-type form-id
                                            #:field-value (assoc-val field-name init-data)
+                                           #:input-id input-id
                                            #:auto-submit auto-submit)
                               (if skip-br "" '(br)))))
       ;; we want the checkbox to come before the label:
