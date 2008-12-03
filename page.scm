@@ -1,24 +1,23 @@
 #lang scheme/base
 
-(require (planet "dispatch.ss" ("untyped" "dispatch.plt" 1 5))
+(require net/url
+         (planet "dispatch.ss" ("untyped" "dispatch.plt" 1 5))
          (planet "web.scm" ("soegaard" "web.plt" 2 1))
          (planet "digest.ss" ("soegaard" "digest.plt" 1 1))
          "util.scm"
          "web-support.scm"
          "session.scm"
          "settings.scm"
-         "time.scm"
-         "atom.ss"
-         "rss.ss")
+         "time.scm")
 
 (provide define-page
          define-session-page
          page
+         page?
          design
          **
          page-url
          redirect-to-page
-         atom-wrapper
          js-inc
          css-inc
          versioned-file-reference
@@ -59,31 +58,48 @@
 ;; * #:raw-header is a list of strings which are inserted directly at the beginning of the
 ;;   <head /> area of the page.
 ;; * #:doc-type should be #f or a str.  If str, it is automatically "rawed".
+;; * #:redirect-to should be #f or a URI str.  If str, the body is evaluated but not
+;;   returned (since you are asking to redirect).
 ;; 
 (define (page #:doc-type (doc-type #f)
               #:raw-header (raw-header '())
               #:css (css '())
               #:js (js '())
-              #:atom-feed (atom-feed '())
-              #:rss-feed (rss-feed '())
+              #:atom-feed-page (atom-feed-page #f)
+              #:rss-feed-page (rss-feed-page #f)
               #:title (title "a LeftParen web app")
               #:body-attrs (body-attrs '())
               #:body-wrap (body-wrap (lambda (body) body))
               #:blank (blank #f)
               #:plain-text (plain-text #f)
               #:design (a-design #f)
+              #:redirect-to (redirect-to #f)
               . body)
-  (let ((returned-body (last body)))
-    (cond ((response/full? returned-body) returned-body)
+  (let ((returned-body
+         (if (empty? body)
+             (if (not redirect-to)
+                 (e "Unless you are doing a #:redirect-to, a body is required.")
+                 #f)
+             (last body))))
+    (cond (redirect-to (response-promise-to-redirect redirect-to))
+          ((response/full? returned-body) returned-body)
           (plain-text (basic-response (list returned-body)
                                       ;; Hey, this is probably where we go all unicode...
                                       #:type #"text/xml;  charset=us-ascii"))
           (blank returned-body) ; the type of response is default (text/html)
           (a-design (a-design returned-body))
+<<<<<<< HEAD:page.scm
           (else (let ((main `(html
                                    (head ,@(map css-inc css)
                                          ,@(map atom-inc atom-feed)
                                          ,@(map rss-inc rss-feed)
+=======
+          (else (let ((main `(html (head ,@(map css-inc css)
+                                         ,@(splice-if atom-feed-page
+                                                      (atom-inc (page-url atom-feed-page)))
+                                         ,@(splice-if rss-feed-page
+                                                      (rss-inc (page-url rss-feed-page)))
+>>>>>>> 43eb9b99f0a9c0e6f9ae736edaa0b7fe6b33082f:page.scm
                                          ,@(map js-inc js)
                                          ,@(map raw-str raw-header)
                                          (title ,title))
@@ -181,6 +197,13 @@
 (define (css-inc css-filename)
   `(link ((rel "stylesheet") (type "text/css") (href ,css-filename))))
 
+(define (atom-inc feed-url)
+  `(link ((rel "alternate") (type "application/atom+xml") (href ,feed-url))))
+
+(define (rss-inc feed-url #:title (title "RSS feed"))
+  `(link ((href ,feed-url) (rel "alternate") (type "application/rss+xml")
+          (title ,title))))
+
 ;; filename should be relative to htdocs directory
 ;; XXX I'm not sure this will actually work (does the # trigger a new file refresh?)
 ;; XXX INDEED IT DOES NOT.  We'll have to change the actual filename and then
@@ -191,4 +214,11 @@
 (define (redirect-to-page page-name . args)
   (redirect-to (apply controller-url page-name args)))
 
-(define page-url controller-url)
+(define (page-url page #:absolute (absolute #f))
+  (let ((rel-url (controller-url page)))
+    (if absolute
+        (url->string (combine-url/relative (string->url (setting *WEB_APP_URL*))
+                                           rel-url))
+        rel-url)))
+
+(define page? controller?)

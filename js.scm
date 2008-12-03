@@ -4,6 +4,7 @@
 
 (provide js-script-invoke
          js-array
+         js-hash
          js-quote
          js-call
          js-call-on-load
@@ -16,12 +17,28 @@
 (define (js-array scheme-lst)
   (string-append "[" (string-join scheme-lst ", ") "]"))
 
+(define (js-hash scheme-hash)
+  (string-append
+   "{ "
+   (string-join (hash-map scheme-hash (lambda (k v) (format "~A:~A" (js-quote k) v)))
+                ", ")
+   "}"))
+  
 (define (js-quote thing)
   (cond ((number? thing) (number->string thing))
-        ((or (string? thing) (symbol? thing)) (format "'~A'" thing))
+        ((or (string? thing) (symbol? thing))
+         (format "\"~A\"" (careful-string-quote (if (string? thing)
+                                                    thing
+                                                    (symbol->string thing)))))
         ((eq? thing #t) "true")
         ((eq? thing #f) "false")
         (else (e "Don't know how to js-quote ~A." thing))))
+
+(define (careful-string-quote scm-str)
+  (pregexp-replace-many scm-str
+                        ("\n" => "  ")
+                        ("\r" => "  ")
+                        ("\"" => "'")))
 
 (define (js-call-on-load fn-name #:quote-all (quote-all #f) . args)
   (format "$(document).ready(function() { ~A })"

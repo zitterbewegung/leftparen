@@ -21,8 +21,7 @@
          "profiler.scm"
          "log.scm"
          "task-queue.scm"
-         "atom.ss"
-         "rss.ss"
+         "feed.ss"
          )
 
 (provide
@@ -57,14 +56,11 @@
  form-markup
  grab-user-input
 
- ;;Feeds 
+ ;; feeds 
+ atom-feed
  atom-item
- atom-inc
- atom-wrapper
- rss-inc
- rss-wrapper
+ rss-feed
  rss-item
- rss-li
  
  ;; records and the data repository
  rec-prop
@@ -134,6 +130,7 @@
  ;; js
  js-script-invoke
  js-array
+ js-hash
  js-quote
  js-call
  js-call-on-load
@@ -146,7 +143,6 @@
  **
  page-url
  redirect-to-page
- atom-wrapper
  js-inc
  css-inc
  versioned-file-reference
